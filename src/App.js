@@ -30,16 +30,13 @@ function App() {
     socket.on("helloClient", () => {
       console.log("hello from the server");
     });
-    socket.on("TICKER_DATA", () => {
-      console.log("this TICKER_DATA from server");
-    });
 
     socket.on("new-users", (args) => {
       setRoomUsers(args);
     });
-    socket.on('winners-user',(args)=>{
-      setRoomWinners(args)
-    })
+    socket.on("TICKER_DATA", (args) => {
+      setRoomWinners(args);
+    });
 
     return () => {
       socket.emit("disconnect", userData.level);
@@ -50,7 +47,7 @@ function App() {
     setButDis(true);
     let obj = {
       name: name,
-      userId: userId,
+      userId: userId.toString(),
       level: levelSel,
       entryFee: entryFee,
       entryPoints: currentPoint,
@@ -64,7 +61,7 @@ function App() {
     setUserData(obj);
     timer = setInterval(() => {
       let currentPoint = totalPointsRef.current;
-      currentPoint = currentPoint + Math.floor(Math.random() * 100);
+      currentPoint = currentPoint + Math.floor(Math.random() * 10000);
       let extraMoney = Math.floor((currentPoint - entryPointsRef.current) / 10);
       let totalMoney = entryFeeRef.current + extraMoney;
       totalMoneyRef.current = totalMoney;
@@ -88,22 +85,41 @@ function App() {
     if (timer) {
       clearInterval(timer);
     }
-    socket.emit("GAME_END", userData);
+    socket.emit("GAME_END", { ...userData, endTime: Date.now().toString() });
   };
 
   const users = roomUsers.map((each) => {
     return (
-      <FormField name="Users In This Room" htmlFor="text-input-id" label="User Name">
+      <FormField
+        name="Users In This Room"
+        htmlFor="text-input-id"
+        label="Users In This Room"
+      >
         <TextInput value={each.name} />
       </FormField>
     );
   });
-  const winners = roomWinners[0]? roomWinners[0].messages.map((each)=>{
-    return <Box>
-      <Text>{`Name - ${each.message.name}:${each.message.userId}`}</Text>
-      <Text>{`Total Points - ${each.message.currentPoint}`}</Text>
-    </Box>
-  }):[]
+  const winners = roomWinners[0]
+    ? roomWinners[0].messages.map((each) => {
+        let timeDiff = Math.floor(
+          (new Date(Date.now()) - new Date(parseInt(each.message.endTime))) /
+            1000 /
+            60
+        );
+        let won = parseInt(each.message.totalMoney)- parseInt(each.message.entryFee)
+        let times = Math.floor(won/each.message.entryFee)
+        return (
+          <Box margin="small"  pad ="medium"background="#f2f2f2">
+            <Text>{`Name - ${each.message.name}:${each.message.userId}`}</Text>
+            <Text>{`Entry - ${each.message.entryFee}`}</Text>
+            <Text>{`Total Money - ${each.message.totalMoney}`}</Text>
+            <Text>{`Won - ${won}(${times}x)`}</Text>
+            <Text>{`Total Points - ${each.message.currentPoint}`}</Text>
+            <Text>{`${timeDiff} min ago`}</Text>
+          </Box>
+        );
+      })
+    : [];
   return (
     <Fragment>
       <Box gap="medium" pad="medium" elevation="small" margin="medium">
@@ -111,7 +127,10 @@ function App() {
           <TextInput
             placeholder="Type your Name"
             value={name}
-            onChange={(e) => {setUserId(Math.floor(Math.random() * Date.now()));setName(e.target.value)}}
+            onChange={(e) => {
+              setUserId(Math.floor(Math.random() * Date.now()));
+              setName(e.target.value);
+            }}
           />
         </FormField>
         <FormField name="UserId" htmlFor="text-input-id" label="User ID">
@@ -198,10 +217,11 @@ function App() {
           <Button label="End Game" onClick={handleEndGame} />
         </Box>
       ) : null}
-      {/* <Box margin="medium" pad="medium" elevation="medium">
+
+      <Box margin="medium" pad="medium" elevation="medium" background="#FF7F50">
         {users}
-      </Box> */}
-      <Box margin="medium" pad="medium" elevation="medium">
+      </Box>
+      <Box margin="medium" pad="medium" elevation="medium" background="#99ccff">
         {winners}
       </Box>
     </Fragment>
